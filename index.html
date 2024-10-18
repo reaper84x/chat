@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ChatHub</title>
+    <style>
+        #messages { height: 300px; overflow-y: scroll; margin-bottom: 10px; }
+    </style>
+</head>
+<body>
+    <h1>ChatHub</h1>
+    <div id="auth-status"></div>
+    <button id="login">Login</button>
+    <button id="logout">Logout</button>
+    
+    <div id="chat-container" style="display:none;">
+        <div id="messages"></div>
+        <input type="text" id="message-input" placeholder="Type a message...">
+        <button id="send-message">Send</button>
+    </div>
+
+    <script type="module">
+        // Import the functions you need from the SDKs you need
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/9.0.0/firebase-app.js";
+        import { getAuth, signInWithPopup, GoogleAuthProvider, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/9.0.0/firebase-auth.js";
+        import { getFirestore, collection, addDoc, query, orderBy, limit, onSnapshot, serverTimestamp } from "https://www.gstatic.com/firebasejs/9.0.0/firebase-firestore.js";
+        
+        // Your web app's Firebase configuration
+        const firebaseConfig = {
+            apiKey: "AIzaSyCKyoFaGcziNQC82u3x4Rh2LvLTw_zfOBI",
+            authDomain: "chathub-2d1c0.firebaseapp.com",
+            projectId: "chathub-2d1c0",
+            storageBucket: "chathub-2d1c0.appspot.com",
+            messagingSenderId: "517159369714",
+            appId: "1:517159369714:web:e217999e849bbbcaed096b"
+        };
+
+        // Initialize Firebase
+        const app = initializeApp(firebaseConfig);
+        const auth = getAuth(app);
+        const db = getFirestore(app);
+
+        // DOM elements
+        const authStatus = document.getElementById('auth-status');
+        const loginButton = document.getElementById('login');
+        const logoutButton = document.getElementById('logout');
+        const chatContainer = document.getElementById('chat-container');
+        const messagesDiv = document.getElementById('messages');
+        const messageInput = document.getElementById('message-input');
+        const sendButton = document.getElementById('send-message');
+
+        // Login functionality
+        loginButton.addEventListener('click', () => {
+            const provider = new GoogleAuthProvider();
+            signInWithPopup(auth, provider);
+        });
+
+        // Logout functionality
+        logoutButton.addEventListener('click', () => {
+            signOut(auth);
+        });
+
+        // Send message functionality
+        sendButton.addEventListener('click', () => {
+            const message = messageInput.value.trim();
+            if (message && auth.currentUser) {
+                addDoc(collection(db, 'messages'), {
+                    text: message,
+                    createdAt: serverTimestamp(),
+                    uid: auth.currentUser.uid,
+                    displayName: auth.currentUser.displayName
+                });
+                messageInput.value = '';
+            }
+        });
+
+        // Auth state observer
+        onAuthStateChanged(auth, user => {
+            if (user) {
+                authStatus.textContent = `Logged in as ${user.displayName}`;
+                chatContainer.style.display = 'block';
+                // Start listening for messages
+                listenForMessages();
+            } else {
+                authStatus.textContent = 'Not logged in';
+                chatContainer.style.display = 'none';
+            }
+        });
+
+        // Listen for messages
+        function listenForMessages() {
+            const q = query(collection(db, 'messages'), orderBy('createdAt'), limit(50));
+            onSnapshot(q, (snapshot) => {
+                messagesDiv.innerHTML = '';
+                snapshot.forEach((doc) => {
+                    const message = doc.data();
+                    const messageElement = document.createElement('p');
+                    messageElement.textContent = `${message.displayName}: ${message.text}`;
+                    messagesDiv.appendChild(messageElement);
+                });
+            });
+        }
+    </script>
+</body>
+</html>
